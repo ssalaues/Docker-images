@@ -10,34 +10,31 @@ RUN apt-get -qq -y update
 RUN apt-get -qq -y install build-essential telnet iperf build-essential wget curl less rsync vim
 
 # Install hadoop
-ENV HADOOP_VERSION=2.7.2
-ENV HADOOP_URL=http://www.us.apache.org/dist/hadoop/common/
+ENV HADOOP_VERSION=2.8.1
 ENV HADOOP_DIR=/opt/hadoop
 # note that HADOOP_PREFIX is used when calling bin/hadoop commands so must be defined
-ENV HADOOP_PREFIX=$HADOOP_DIR/hadoop-$HADOOP_VERSION
+ENV HADOOP_HOME=$HADOOP_DIR/hadoop-$HADOOP_VERSION
 RUN mkdir -p $HADOOP_DIR
-RUN curl -s "${HADOOP_URL}/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz" | tar -xz -C $HADOOP_DIR
+RUN curl -fSL "http://mirrors.gigenet.com/apache/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz " -o /tmp/hadoop.tar.gz
+RUN tar -xf /tmp/hadoop.tar.gz -C $HADOOP_DIR && rm -f /tmp/hadoop.tar.gz
 
 # Add AWS jar file to classpath
-RUN sed -i '43i export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:/opt/hadoop/hadoop-2.7.2/share/hadoop/tools/lib/*' "${HADOOP_PREFIX}/etc/hadoop/hadoop-env.sh"
+RUN sed -i '43i export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:/opt/hadoop/hadoop-$HADOOP_VERSION/share/hadoop/tools/lib/*' "${HADOOP_HOME}/etc/hadoop/hadoop-env.sh"
 
 # Add s3 endpoint and accessKey/secretKey info
-ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml
+ADD core-site.xml.template $HADOOP_HOME/etc/hadoop/core-site.xml
 
 # Add hadoop to path
-ENV HADOOP_HOME=$HADOOP_PREFIX
 ENV PATH=$HADOOP_HOME/bin:$PATH
 
 # Install Spark
-ENV SPARK_VERSION=2.1.0
+ENV SPARK_VERSION=2.2.0
 ENV SPARK_HOME=/opt/spark/spark-$SPARK_VERSION
 
 RUN mkdir -p "${SPARK_HOME}" \
-  && export ARCHIVE=spark-$SPARK_VERSION-bin-without-hadoop.tgz \
-  && export DOWNLOAD_PATH=apache/spark/spark-$SPARK_VERSION/$ARCHIVE \
-  && curl -sSL https://mirrors.ocf.berkeley.edu/$DOWNLOAD_PATH | \
-    tar -xz -C $SPARK_HOME --strip-components 1 \
-  && rm -rf $ARCHIVE
+  && curl -fSL "https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/spark-$SPARK_VERSION-bin-without-hadoop.tgz" -o spark.tgz \
+  &&  tar -xvf spark.tgz -C $SPARK_HOME --strip-components 1 \
+  && rm -rf spark.tgz
 COPY spark-env.sh $SPARK_HOME/conf/spark-env.sh
 ENV PATH=$SPARK_HOME/bin:$PATH
 
